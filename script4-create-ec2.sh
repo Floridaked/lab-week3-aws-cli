@@ -18,7 +18,7 @@ debian_ami=$(aws ec2 describe-images \
   --output text)
 
 # Create security group allowing SSH and HTTP from anywhere
-security_group_id=$(aws ec2 create-security-group --group-name MySecurityGroup \
+security_group_id=$(aws ec2 create-security-group --group-name "MySecurityGroup-$(date +%s)" \
  --description "Allow SSH and HTTP" --vpc-id $vpc_id --query 'GroupId' \
  --region $region \
  --output text)
@@ -33,22 +33,28 @@ aws ec2 authorize-security-group-ingress --group-id $security_group_id \
 # COMPLETE THIS PART
 instance_id=$(aws ec2 run-instances \
   --image-id $debian_ami \
+  --count 1 \
   --instance-type t2.micro \
-  --key-name "bcitkey" \
+  --key-name $key_name \
+  --subnet-id $subnet_id \
   --security-group-ids $security_group_id \
-  --query "Instances[0].InstanceId" \
-  --output text)
+  --associate-public-ip-address \
+  --query 'Instances[0].InstanceId' \
+  --output text \
+  --region $region)
+
 
 # wait for ec2 instance to be running
-aws ec2 wait instance-running --instance-ids $instance_id
+aws ec2 wait instance-running --instance-ids $instance_id --region $region
 
 # Get the public IP address of the EC2 instance
 # COMPLETE THIS PART
 public_ip=$(aws ec2 describe-instances \
   --instance-ids $instance_id \
-  --query "Reservations[0].Instances[0].PublicIpAddress" \
-  --output text)
+  --query 'Reservations[0].Instances[0].PublicIpAddress' \
+  --output text \
+  --region $region)
 
-# Write instance data to a file
-# COMPLETE THIS PART
-echo "Public IP: $public_ip" | tee instance_data
+echo $public_ip > instance_data
+echo "Public IP saved to instance_data: $public_ip"
+echo "ssh -i ~/.ssh/$key_name admin@$public_ip"
